@@ -51,7 +51,6 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		let coordinateRegion = MKCoordinateRegionMakeWithDistance(annotation.coordinate, regionRadius, regionRadius)
 		mapView.setRegion(coordinateRegion, animated: true)
 		mapView.addAnnotation(annotation)
-
 		updateDataSource()
 
     }
@@ -59,6 +58,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 	//MARK: - CollectionView Setup
 	func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
 		print(photos.count)
+
 		return photos.count
 		
 	}
@@ -73,23 +73,25 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		
 		let photo = photos[indexPath.row]
 		
-		//Download the image data, which could take some time
-		fetchImage(for: photo) { (result) -> Void in
-			
-			// The index path for the photo might have changed between the
-			// time the request started and finished, so find the most
-			// recent index path
-			guard let photoIndex = self.photos.index(of: photo),
-				case let .success(image) = result
-				else {
-					return
-			}
-			
-			let photoIndexPath = IndexPath(item: photoIndex, section: 0)
-			
-			// When the request finishes, only update the cell if it's still visible
-			if let cell = self.collectView.cellForItem(at: photoIndexPath) as? PhotoCellCollectionViewCell {
-				cell.update(with: image)
+		performUIUpdatesOnMain {
+			//Download the image data, which could take some time
+			self.fetchImage(for: photo) { (result) -> Void in
+				
+				// The index path for the photo might have changed between the
+				// time the request started and finished, so find the most
+				// recent index path
+				guard let photoIndex = self.photos.index(of: photo),
+					case let .success(image) = result
+					else {
+						return
+				}
+				
+				let photoIndexPath = IndexPath(item: photoIndex, section: 0)
+				
+				// When the request finishes, only update the cell if it's still visible
+				if let cell = self.collectView.cellForItem(at: photoIndexPath) as? PhotoCellCollectionViewCell {
+					cell.update(with: image)
+				}
 			}
 		}
 	}
@@ -117,7 +119,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		guard let photoKey = photo.photoID else {
 			preconditionFailure("Photo expected to have photoID")
 		}
-		
+
 		if let image = imageStore.imageForKey(key: photoKey) {
 			DispatchQueue.main.async {
 				completion(.success(image))
@@ -157,23 +159,34 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		return .success(image)
 	}
 
+	@IBAction func newCollection(_ sender: Any) {
+
+		CoreDataManager.deletePhotosForPin(self.passedPin!)
+		FlickrAPI.sharedInstance.displayImageFromFlickrBySearch(self.latitude, self.longitude) { (result) in
+			print(result)
+			self.updateDataSource()
+		}
+		
+	
+	}
+
 	
 	@IBAction func backButton(_ sender: Any) {
 		dismiss(animated: true, completion: nil)
 	}
 	
-	// MARK: -  Error alert setup
-	func showAlert(_ sender: Any, message: String) {
-		let errMessage = message
-		
-		let alert = UIAlertController(title: nil, message: errMessage, preferredStyle: UIAlertControllerStyle.alert)
-		alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: { action in
-			alert.dismiss(animated: true, completion: nil)
-		}))
-		
-		self.present(alert, animated: true, completion: nil)
-		
-	}
+//	// MARK: -  Error alert setup
+//	func showAlert(_ sender: Any, message: String) {
+//		let errMessage = message
+//		
+//		let alert = UIAlertController(title: nil, message: errMessage, preferredStyle: UIAlertControllerStyle.alert)
+//		alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: { action in
+//			alert.dismiss(animated: true, completion: nil)
+//		}))
+//		
+//		self.present(alert, animated: true, completion: nil)
+//	
+//	}
 	
 	func updateDataSource() {
 		self.fetchAllPhotos { (photosResult) in
@@ -190,8 +203,6 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 	
 	func fetchAllPhotos(completion: @escaping (FetchResult) -> Void) {
 		let fetchRequest: NSFetchRequest<Photo> = Photo.fetchRequest()
-		let sortByID = NSSortDescriptor(key: #keyPath(Photo.photoID), ascending: true)
-		fetchRequest.sortDescriptors = [sortByID]
 		fetchRequest.predicate = NSPredicate(format: "pin == %@", self.passedPin!)
 		
 		let viewContext = CoreDataManager.persistentContainer?.viewContext

@@ -9,48 +9,54 @@
 import Foundation
 import CoreData
 
-enum PhotosResult {
-	case success([Photo])
-	case failure(Error)
-}
-
-extension VTMapViewController {
+class PhotoData: NSObject {
 	
-
+	enum PhotosResult {
+		case success([Photo])
+		case failure(Error)
+	}
+	
+	static let sharedInstance = PhotoData()
+	
+	var currentPin: Pin? = nil
+	
+	func setCurrentPin(pin: Pin?) {
+		currentPin = pin
+	}
+	
+	func getCurrentPin() -> Pin {
+		return currentPin!
+	}
+	
 	//MARK: - Function to process/save photos
-	static func processPhotosRequest(data: Data?, error: Error?, completion: @escaping (PhotosResult) -> Void) {
+	func processPhotosRequest(data: Data?, error: Error?, completion: @escaping (PhotosResult) -> Void) {
 		guard let jsonData = data
 			else {
 				completion(.failure(error!))
 				return
 		}
-		CoreDataManager.persistentContainer?.performBackgroundTask { (context) in
-			
-			let result = photos(fromJSON: jsonData, into: (CoreDataManager.persistentContainer?.viewContext)!)
-			do {
-				try context.save()
-			} catch {
-				print("Error saving to Core Data: \(error).")
-				completion(.failure(error))
-				return
-			}
-			
-			
-			switch result {
-			case let .success(photos):
-				let photoIDs = photos.map { return $0.objectID }
-				let viewContext = CoreDataManager.persistentContainer?.viewContext
-				let viewContextPhotos =	photoIDs.map { return viewContext?.object(with: $0) } as! [Photo]
-				completion(.success(viewContextPhotos))
-			case .failure:
-				completion(result)
-			}
-			
+		let result = self.photos(fromJSON: jsonData, into: (CoreDataManager.persistentContainer?.viewContext)!)
+		do {
+			try CoreDataManager.persistentContainer?.viewContext.save()
+		} catch {
+			print("Error saving to Core Data: \(error).")
+			completion(.failure(error))
+			return
 		}
+		switch result {
+		case let .success(photos):
+			let photoIDs = photos.map { return $0.objectID }
+			let viewContext = CoreDataManager.persistentContainer?.viewContext
+			let viewContextPhotos =	photoIDs.map { return viewContext?.object(with: $0) } as! [Photo]
+			completion(.success(viewContextPhotos))
+		case .failure:
+			completion(result)
+		}
+		
 	}
 	
 	
-	 static func photos(fromJSON data: Data, into context: NSManagedObjectContext) -> PhotosResult {
+	func photos(fromJSON data: Data, into context: NSManagedObjectContext) -> PhotosResult {
 		do {
 			let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
 			
@@ -62,7 +68,9 @@ extension VTMapViewController {
 					//The JSON structure doesn't match our expectations
 					return .failure(FlickError.invalidJSONData)
 			}
+			
 			var finalPhotos = [Photo]()
+
 			for photoJSON in photosArray {
 				if let photo = photo(fromJSON: photoJSON, into: (CoreDataManager.persistentContainer?.viewContext)!) {
 					finalPhotos.append(photo)
@@ -71,16 +79,14 @@ extension VTMapViewController {
 			if finalPhotos.isEmpty && !photosArray.isEmpty {
 				return .failure(FlickError.invalidJSONData)
 			}
-			CoreDataManager.saveContext()
 			return .success(finalPhotos)
 		} catch let error {
 			return .failure(error)
 		}
 	}
 	
-
 	
-	static func photo(fromJSON json: [String: Any], into context: NSManagedObjectContext) -> Photo? {
+	func photo(fromJSON json: [String: Any], into context: NSManagedObjectContext) -> Photo? {
 		
 		guard
 			let photoID = json["id"] as? String,
@@ -105,13 +111,12 @@ extension VTMapViewController {
 		
 		var photo: Photo!
 		context.performAndWait {
-			photo = Photo(context: (CoreDataManager.persistentContainer?.viewContext)!)
+			photo = Photo(context: context)
 			photo.photoID = photoID
 			photo.imageURL = url as NSURL
-			photo.pin = VTMapViewController.newPin
-			
+			photo.pin = self.currentPin
 		}
 		return photo
 	}
-
+	
 }
