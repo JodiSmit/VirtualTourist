@@ -89,6 +89,27 @@
 			}
 		}
 		
+		class func deletePhotosForPin(_ pin: Pin) {
+			let context = CoreDataManager.persistentContainer?.viewContext
+			let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: "Photo")
+			
+			let pred = NSPredicate(format: "pin == %@", pin)
+			deleteFetch.predicate = pred
+			
+			do {
+				let items = try context?.fetch(deleteFetch) as! [NSManagedObject]
+				
+				for item in items {
+					context?.delete(item)
+				}
+				try context?.save()
+				
+			} catch {
+				print ("There was an error")
+				
+			}
+		}
+		
         class func deleteAllPinRecords() {
             let context = CoreDataManager.persistentContainer?.viewContext
             let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: "Pin")

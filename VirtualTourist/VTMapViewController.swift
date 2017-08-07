@@ -66,12 +66,12 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
 			VTMapViewController.newPin = Pin(context: (CoreDataManager.persistentContainer?.viewContext)!)
 			VTMapViewController.newPin?.latitude = (newCoordinates?.latitude)!
 			VTMapViewController.newPin?.longitude  = (newCoordinates?.longitude)!
+			PhotoData.sharedInstance.setCurrentPin(pin: VTMapViewController.newPin)
 			latitude = (VTMapViewController.newPin?.latitude)!
 			longitude = (VTMapViewController.newPin?.longitude)!
-			FlickrAPI.sharedInstance.displayImageFromFlickrBySearch(latitude, longitude) { (dunno) in
-				
+			FlickrAPI.sharedInstance.displayImageFromFlickrBySearch(latitude, longitude) { (result) in
+				//print(result)
 			}
-			CoreDataManager.saveContext()
         }
     }
 
@@ -125,6 +125,7 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
 		
 		let selectedPin = self.pinFromSelectedAnnotation()
+		PhotoData.sharedInstance.setCurrentPin(pin: selectedPin)
 		
 		if segue.identifier == "PinSelected" {
 			let svc = segue.destination as? UINavigationController

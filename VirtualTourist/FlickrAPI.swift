@@ -14,8 +14,6 @@ enum FlickError: Error {
 	case invalidJSONData
 }
 
-
-
 class FlickrAPI: NSObject {
 	
 	static var pinCoordinates: CLLocationCoordinate2D?
@@ -23,7 +21,7 @@ class FlickrAPI: NSObject {
 
     // MARK: Flickr API
 
-	func displayImageFromFlickrBySearch(_ latitude: Double,_ longitude: Double,_ picsPerPage: Int = 25, completionHander: @escaping (PhotosResult) -> Void) {
+	func displayImageFromFlickrBySearch(_ latitude: Double,_ longitude: Double,_ picsPerPage: Int = 100, completion: @escaping (PhotoData.PhotosResult) -> Void) {
 		
 		let methodParameters = [
 			Constants.FlickrParameterKeys.Method: Constants.FlickrParameterValues.SearchMethod,
@@ -40,12 +38,11 @@ class FlickrAPI: NSObject {
         let session = URLSession.shared
         let request = URLRequest(url: flickrURLFromParameters(methodParameters as [String : AnyObject]))
         let task = session.dataTask(with: request) { (data, response, error) in
-            
-			VTMapViewController.processPhotosRequest(data: data, error: error) { (result) in
-				
+			PhotoData.sharedInstance.processPhotosRequest(data: data, error: error) { (result) in
 				DispatchQueue.main.async {
-					completionHander(result)
+					completion(result)
 				}
+
 			}
         }
 		
