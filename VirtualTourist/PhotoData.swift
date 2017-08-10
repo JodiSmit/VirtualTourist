@@ -4,7 +4,7 @@
 //
 //  Created by Jodi Lovell on 7/25/17.
 //  Copyright © 2017 None. All rights reserved.
-//
+// A fair amount of this code was borrowed from a course offered by Big Nerd Ranch. I like the flow of the processing of the JSON data as it feels clean and well laid out.
 
 import Foundation
 import CoreData

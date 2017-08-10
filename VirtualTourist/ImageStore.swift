@@ -4,7 +4,7 @@
 //
 //  Created by Jodi Lovell on 7/13/17.
 //  Copyright © 2017 None. All rights reserved.
-//
+// The Image store Class and some code relating to it was borrowed from a course given by Big Nerd Ranch.
 
 
 
