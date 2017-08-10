@@ -10,7 +10,6 @@
 	
 	
     //MARK: - Core Data stack
-    
     class CoreDataManager {
         
         private init() {
@@ -51,7 +50,6 @@
         
         
         // MARK: - Core Data Saving support
-        
         class func saveContext () {
         let context = CoreDataManager.persistentContainer?.viewContext
             if (context?.hasChanges)! {
@@ -66,6 +64,7 @@
             }
         }
 		
+		//MARK: - Delete Single Pin Record
 		class func deleteSinglePinRecord(_ pin: CLLocationCoordinate2D) {
 			let context = CoreDataManager.persistentContainer?.viewContext
 			let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: "Pin")
@@ -89,6 +88,7 @@
 			}
 		}
 		
+		//MARK: - Delete Photos associated with a Pin
 		class func deletePhotosForPin(_ pin: Pin) {
 			let context = CoreDataManager.persistentContainer?.viewContext
 			let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: "Photo")
@@ -110,6 +110,34 @@
 			}
 		}
 		
+		//MARK: - Delete Photos	Selected by the User
+		class func deleteSelectedPhotos(_ photos: [String]) {
+			let context = CoreDataManager.persistentContainer?.viewContext
+			let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: "Photo")
+			
+			for photo in photos {
+				let pred = NSPredicate(format: "photoID == %@", photo)
+				print(pred)
+				deleteFetch.predicate = pred
+				
+				do {
+					let items = try context?.fetch(deleteFetch) as! [NSManagedObject]
+					print(items)
+					for item in items {
+						context?.delete(item)
+					}
+					try context?.save()
+					
+				} catch {
+					print ("There was an error")
+					
+				}
+			}
+			
+
+		}
+		
+		//MARK: - Batch delete all Pins
         class func deleteAllPinRecords() {
             let context = CoreDataManager.persistentContainer?.viewContext
             let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: "Pin")
@@ -122,7 +150,8 @@
                 print ("There was an error")
             }
         }
-        
+		
+		//MARK: - Batch delete all Photos
         class func deleteAllPhotoRecords() {
             let context = CoreDataManager.persistentContainer?.viewContext
             let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: "Photo")

@@ -27,6 +27,7 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
 	var selectedAnnotation: MKAnnotation?
 	var pinToDelete: CLLocationCoordinate2D?
 	static var newPin: Pin?
+	var pinError = false
 	
 
     override func viewDidLoad() {
@@ -36,7 +37,8 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
 	        self.loadExistingPins()
 		}
     }
-    
+	
+	//MARK: - Button action to edit (remove) individual pins.
     @IBAction func editPins(_ sender: Any) {
         if editingPins {
             hideLabel()
@@ -44,16 +46,17 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
             showLabel()
         }
     }
-    
+	
+	//MARK: - Button action to batch delete all pins.
     @IBAction func deletePins(_ sender: Any) {
-
 		CoreDataManager.deleteAllPinRecords()
 		performUIUpdatesOnMain {
 			let allAnnotations = self.mapView.annotations
 			self.mapView.removeAnnotations(allAnnotations)
 		}
     }
-    
+	
+	//MARK: - Long press action to drop pin. Also kicks off Flickr API request.
     @IBAction func longPress(_ sender: UILongPressGestureRecognizer) {
         if sender.state == UIGestureRecognizerState.began {
             sender.minimumPressDuration = 1.0
@@ -70,7 +73,12 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
 			latitude = (VTMapViewController.newPin?.latitude)!
 			longitude = (VTMapViewController.newPin?.longitude)!
 			FlickrAPI.sharedInstance.displayImageFromFlickrBySearch(latitude, longitude) { (result) in
-				//print(result)
+				switch result {
+				case .failure( _):
+					self.pinError = true
+				default:
+					break
+				}
 			}
         }
     }
@@ -90,7 +98,6 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
         else {
             pinView!.annotation = annotation
         }
-        
         return pinView
     }
     
@@ -98,14 +105,20 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
     //MARK: - This method is implemented to allow pins to respond to taps.
 	func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
 		self.selectedAnnotation = mapView.selectedAnnotations.first as! MKPointAnnotation
-		if editingPins == false {
-			performSegue(withIdentifier: "PinSelected", sender: self.selectedAnnotation)
-		}else {
-			var pinDeleting: CLLocationCoordinate2D?
-			pinDeleting = self.selectedAnnotation?.coordinate
-			CoreDataManager.deleteSinglePinRecord(pinDeleting!)
-			self.mapView.removeAnnotation(self.selectedAnnotation!)
+		if pinError != true {
+			if editingPins == false {
+				mapView.deselectAnnotation(view.annotation, animated: true)
+				performSegue(withIdentifier: "PinSelected", sender: self.selectedAnnotation)
+			}else {
+				var pinDeleting: CLLocationCoordinate2D?
+				pinDeleting = self.selectedAnnotation?.coordinate
+				CoreDataManager.deleteSinglePinRecord(pinDeleting!)
+				self.mapView.removeAnnotation(self.selectedAnnotation!)
+			}
+		} else {
+			self.showAlert(AnyObject.self, message: "No Images found for Pin! Please try another location!")
 		}
+
 	}
 	
     // MARK: -  Error alert setup
@@ -155,38 +168,29 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
         }
     }
 
+	//MARK: - Get core data information for selected Pin
 	func pinFromSelectedAnnotation() -> Pin {
 		
-		// Creates a fetchrequest to fetch the pin from the selected annotation
 		let fetchRequest: NSFetchRequest<Pin> = Pin.fetchRequest()
 		fetchRequest.sortDescriptors = [ NSSortDescriptor(key: "latitude", ascending: true) ]
 		
 		let context = CoreDataManager.persistentContainer?.viewContext
 		let fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: context!, sectionNameKeyPath: nil, cacheName: nil)
-		
-		
-		// The annotation selected from the mapView
+
 		guard let annotation = selectedAnnotation else { print("'selectedAnnotation = nil'"); return Pin(context: context!) }
 		let latitude = annotation.coordinate.latitude
 		let longitude = annotation.coordinate.longitude
-		
-		// Creates a prediacte to fetch the pin from the selected annotations latitude and longitude
 		let pred = NSPredicate(format: "latitude = %@ AND longitude = %@", argumentArray: [latitude, longitude])
 		fetchRequest.predicate = pred
-		// Sets the fetchlimit to 1, incase two pins, for some reason, should share the same latitude and longitude
 		fetchRequest.fetchLimit = 1
 		
-		//
 		do { try fetchedResultsController.performFetch()
 		} catch { print("Failed to initialize FetchedResultsController: \(error)") }
-		
 
-		// I use '.first' because i have set the fetchrequest limit to '1'
 		guard let pinFromAnnotation = fetchedResultsController.fetchedObjects?.first else {
 			print("no pin found from latitude and/or longitude from clicked annotation")
 			return Pin(context: context!)
 		}
-		
 		return pinFromAnnotation
 	}
 	

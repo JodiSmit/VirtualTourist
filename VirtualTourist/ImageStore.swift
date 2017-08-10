@@ -10,7 +10,7 @@
 
 import UIKit
 
-// to store images in a cache
+//MARK: - Helper used to store images in a cache
 class ImageStore: NSObject {
 	let cache = NSCache<AnyObject, AnyObject>()
 	

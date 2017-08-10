@@ -19,8 +19,7 @@ class FlickrAPI: NSObject {
 	static var pinCoordinates: CLLocationCoordinate2D?
 	static let sharedInstance = FlickrAPI()
 
-    // MARK: Flickr API
-
+    // MARK: - Flickr API request
 	func displayImageFromFlickrBySearch(_ latitude: Double,_ longitude: Double,_ picsPerPage: Int = 100, completion: @escaping (PhotoData.PhotosResult) -> Void) {
 		
 		let methodParameters = [
@@ -39,6 +38,7 @@ class FlickrAPI: NSObject {
         let request = URLRequest(url: flickrURLFromParameters(methodParameters as [String : AnyObject]))
         let task = session.dataTask(with: request) { (data, response, error) in
 			PhotoData.sharedInstance.processPhotosRequest(data: data, error: error) { (result) in
+
 				DispatchQueue.main.async {
 					completion(result)
 				}
@@ -50,8 +50,7 @@ class FlickrAPI: NSObject {
     }
 	
 	
-	// MARK: Helper for Creating a URL from Parameters
-	
+	// MARK: - Helper for Creating a URL from Parameters
 	private func flickrURLFromParameters(_ parameters: [String:AnyObject]) -> URL {
 		
 		var components = URLComponents()

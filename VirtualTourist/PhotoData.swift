@@ -9,8 +9,10 @@
 import Foundation
 import CoreData
 
+
 class PhotoData: NSObject {
-	
+
+
 	enum PhotosResult {
 		case success([Photo])
 		case failure(Error)
@@ -30,6 +32,8 @@ class PhotoData: NSObject {
 	
 	//MARK: - Function to process/save photos
 	func processPhotosRequest(data: Data?, error: Error?, completion: @escaping (PhotosResult) -> Void) {
+
+		
 		guard let jsonData = data
 			else {
 				completion(.failure(error!))
@@ -55,7 +59,7 @@ class PhotoData: NSObject {
 		
 	}
 	
-	
+	//MARK: - Get Photos from JSON data
 	func photos(fromJSON data: Data, into context: NSManagedObjectContext) -> PhotosResult {
 		do {
 			let jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
@@ -65,7 +69,6 @@ class PhotoData: NSObject {
 				let photos = jsonDictionary["photos"] as? [String: Any],
 				let photosArray = photos["photo"] as? [[String: Any]]
 				else {
-					//The JSON structure doesn't match our expectations
 					return .failure(FlickError.invalidJSONData)
 			}
 			
@@ -85,7 +88,7 @@ class PhotoData: NSObject {
 		}
 	}
 	
-	
+	//MARK: - Get Photo information from JSON
 	func photo(fromJSON json: [String: Any], into context: NSManagedObjectContext) -> Photo? {
 		
 		guard
