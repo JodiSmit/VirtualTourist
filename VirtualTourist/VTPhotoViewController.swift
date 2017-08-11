@@ -162,7 +162,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		
 		if selectedPhotos.isEmpty {
 			CoreDataManager.deletePhotosForPin(self.passedPin!)
-			FlickrAPI.sharedInstance.displayImageFromFlickrBySearch(self.latitude, self.longitude) { (result) in
+			FlickrAPI.sharedInstance.initiateFlickrAPIRequestBySearch(self.latitude, self.longitude) { (result) in
 				switch result {
 				case .failure( _):
 					self.showAlert(AnyObject.self, message: "Unable to load new images, let's try a new location!")

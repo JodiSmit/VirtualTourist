@@ -72,7 +72,7 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
 			PhotoData.sharedInstance.setCurrentPin(pin: VTMapViewController.newPin)
 			latitude = (VTMapViewController.newPin?.latitude)!
 			longitude = (VTMapViewController.newPin?.longitude)!
-			FlickrAPI.sharedInstance.displayImageFromFlickrBySearch(latitude, longitude) { (result) in
+			FlickrAPI.sharedInstance.initiateFlickrAPIRequestBySearch(latitude, longitude) { (result) in
 				switch result {
 				case .failure( _):
 					self.pinError = true
