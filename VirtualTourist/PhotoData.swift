@@ -8,10 +8,18 @@
 
 import Foundation
 import CoreData
-
+import UIKit
 
 class PhotoData: NSObject {
 
+	enum ImageResult {
+		case success(UIImage)
+		case failure(Error)
+	}
+	
+	enum PhotoError: Error {
+		case imageCreationError
+	}
 
 	enum PhotosResult {
 		case success([Photo])
@@ -20,6 +28,7 @@ class PhotoData: NSObject {
 	
 	static let sharedInstance = PhotoData()
 	
+	var imageData: NSData? = nil
 	var currentPin: Pin? = nil
 	
 	func setCurrentPin(pin: Pin?) {
@@ -100,6 +109,14 @@ class PhotoData: NSObject {
 				return nil
 		}
 		
+		do {
+			let data = try Data(contentsOf: url )
+			imageData = data as NSData
+		}
+			catch {
+				print("No photo data returned!!")
+		}
+		
 		let fetchRequest: NSFetchRequest<Photo> = Photo.fetchRequest()
 		let predicate = NSPredicate(format: "\(#keyPath(Photo.photoID)) == \(photoID)")
 		fetchRequest.predicate = predicate
@@ -117,9 +134,9 @@ class PhotoData: NSObject {
 			photo = Photo(context: context)
 			photo.photoID = photoID
 			photo.imageURL = url as NSURL
+			photo.imageData = self.imageData
 			photo.pin = self.currentPin
 		}
 		return photo
 	}
-	
 }

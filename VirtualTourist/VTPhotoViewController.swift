@@ -30,7 +30,6 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 	@IBOutlet weak var collectionButton: UIButton!
     @IBOutlet weak var mapView: MKMapView!
 
-	let imageStore = ImageStore()
 	var passedPin: Pin?
 	var photos = [Photo]()
 	var latitude: Double = 0.0
@@ -62,30 +61,44 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 	
 	func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
 		
-		let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoCellCollectionViewCell", for: indexPath)
+		let cell = collectView.dequeueReusableCell(withReuseIdentifier: "PhotoCellCollectionViewCell", for: indexPath)
+
 		return cell
 	}
 	
-	//MARK: - Fetch images from cache when cell is loaded.
-	func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-		
-		let photo = photos[indexPath.row]
-		
-		performUIUpdatesOnMain {
-			self.fetchImage(for: photo) { (result) -> Void in
-				guard let photoIndex = self.photos.index(of: photo),
-					case let .success(image) = result
-					else {
-						return
-				}
-				
-				let photoIndexPath = IndexPath(item: photoIndex, section: 0)
-				if let cell = self.collectView.cellForItem(at: photoIndexPath) as? PhotoCellCollectionViewCell {
-					cell.update(with: image)
-				}
-			}
-		}
-	}
+
+//	//MARK: - Fetch images from cache when cell is loaded.
+//	func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+//		
+//		let photo = photos[indexPath.row]
+//		let photoIndex = self.photos.index(of: photo)
+//		let photoIndexPath = IndexPath(item: photoIndex!, section: 0)
+//		
+//		if photos.isEmpty {
+//		if let photoURL = photo.imageURL {
+//			do {
+//				let data = try Data(contentsOf: photoURL as! URL)
+//				let photoImage = UIImage(data: data)
+//
+//				if let cell = collectionView.cellForItem(at: photoIndexPath) as? PhotoCellCollectionViewCell {
+//					cell.update(with: photoImage)
+//				}
+//				DispatchQueue.main.async {
+//
+//					//cell.photoImageCell.image = UIImage(data: data)
+//					photo.imageData = data as NSData
+//					CoreDataManager.saveContext()
+//				}
+//				
+//			}
+//			catch {
+//				print("No photos!!")
+//			}
+//		}
+//		} else {
+//			return
+//		}
+//	}
 	
 	//MARK: - When cell is tapped (selected)
 	func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
@@ -110,52 +123,6 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		cell.alpha = 1
 	}
 	
-	//MARK: - Fetching the image from cache using URL data
-	func fetchImage(for photo: Photo, completion: @escaping (ImageResult) -> Void) {
-		
-		guard let photoKey = photo.photoID else {
-			preconditionFailure("Photo expected to have photoID")
-		}
-
-		if let image = imageStore.imageForKey(key: photoKey) {
-			DispatchQueue.main.async {
-				completion(.success(image))
-			}
-			return
-		}
-	
-		guard let photoURL = photo.imageURL else {
-			preconditionFailure("Photo expected to have remoteURL")
-		}
-		
-		let session = URLSession.shared
-		let request = URLRequest(url: photoURL as! URL)
-		let task = session.dataTask(with: request) { (data, response, error) -> Void in
-			
-			let result = self.processImageRequest(data: data, error: error)
-			
-			if case let .success(image) = result {
-				self.imageStore.setImage(image: image, forKey: photoKey)
-			}
-			DispatchQueue.main.async {
-				completion(result)
-			}
-		}
-		task.resume()
-	}
-	
-	//MARK: - Process the image request based on the data
-	private func processImageRequest(data: Data?, error: Error?) -> ImageResult {
-		guard let imageData = data, let image = UIImage(data: imageData)
-			else {
-				if data == nil {
-					return .failure(error!)
-				} else {
-					return .failure(PhotoError.imageCreationError)
-				}
-		}
-		return .success(image)
-	}
 
 	//MARK: - Action when button at base is clicked
 	@IBAction func newCollection(_ sender: Any) {
