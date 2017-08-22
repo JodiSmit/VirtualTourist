@@ -56,7 +56,7 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
 		}
     }
 	
-	//MARK: - Long press action to drop pin. Also kicks off Flickr API request.
+	//MARK: - Long press action to drop pin.
     @IBAction func longPress(_ sender: UILongPressGestureRecognizer) {
         if sender.state == UIGestureRecognizerState.began {
             sender.minimumPressDuration = 1.0
@@ -67,19 +67,13 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
             annotation.coordinate = newCoordinates!
             mapView.addAnnotation(annotation)
 			VTMapViewController.newPin = Pin(context: (CoreDataManager.persistentContainer?.viewContext)!)
+
 			VTMapViewController.newPin?.latitude = (newCoordinates?.latitude)!
 			VTMapViewController.newPin?.longitude  = (newCoordinates?.longitude)!
 			PhotoData.sharedInstance.setCurrentPin(pin: VTMapViewController.newPin)
 			latitude = (VTMapViewController.newPin?.latitude)!
 			longitude = (VTMapViewController.newPin?.longitude)!
-			FlickrAPI.sharedInstance.initiateFlickrAPIRequestBySearch(latitude, longitude) { (result) in
-				switch result {
-				case .failure( _):
-					self.pinError = true
-				default:
-					break
-				}
-			}
+
         }
     }
 
@@ -154,7 +148,7 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
     func loadExistingPins() {
 		
         let fetchRequest: NSFetchRequest<Pin> = Pin.fetchRequest()
-        
+		
         do {
             let results = try CoreDataManager.getContext().fetch(fetchRequest)
                 for pin in results {

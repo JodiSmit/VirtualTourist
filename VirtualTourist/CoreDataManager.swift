@@ -89,7 +89,7 @@
 		}
 		
 		//MARK: - Delete Photos associated with a Pin
-		class func deletePhotosForPin(_ pin: Pin) {
+		class func deletePhotosForPin(_ pin: Pin, completion: @escaping () -> Void) {
 			let context = CoreDataManager.persistentContainer?.viewContext
 			let deleteFetch = NSFetchRequest<NSFetchRequestResult>(entityName: "Photo")
 			
@@ -103,10 +103,10 @@
 					context?.delete(item)
 				}
 				try context?.save()
-				
+				completion()
 			} catch {
 				print ("There was an error")
-				
+				completion()
 			}
 		}
 		
@@ -117,12 +117,10 @@
 			
 			for photo in photos {
 				let pred = NSPredicate(format: "photoID == %@", photo)
-				print(pred)
 				deleteFetch.predicate = pred
 				
 				do {
 					let items = try context?.fetch(deleteFetch) as! [NSManagedObject]
-					print(items)
 					for item in items {
 						context?.delete(item)
 					}

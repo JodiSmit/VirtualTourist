@@ -34,10 +34,7 @@ class PhotoData: NSObject {
 	func setCurrentPin(pin: Pin?) {
 		currentPin = pin
 	}
-	
-	func getCurrentPin() -> Pin {
-		return currentPin!
-	}
+
 	
 	//MARK: - Function to process/save photos
 	func processPhotosRequest(data: Data?, error: Error?, completion: @escaping (PhotosResult) -> Void) {
@@ -112,6 +109,7 @@ class PhotoData: NSObject {
 		do {
 			let data = try Data(contentsOf: url )
 			imageData = data as NSData
+
 		}
 			catch {
 				print("No photo data returned!!")

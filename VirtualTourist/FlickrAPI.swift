@@ -20,17 +20,13 @@ class FlickrAPI: NSObject {
 	static let sharedInstance = FlickrAPI()
 
 	// MARK: - Flickr API request
-	func initiateFlickrAPIRequestBySearch(_ latitude: Double,_ longitude: Double,_ picsPerPage: Int = 25, completion: @escaping (PhotoData.PhotosResult) -> Void) {
-		
-//		let lat = latitude
-//		let long = longitude
-		
+	func initiateFlickrAPIRequestBySearch(_ latitude: Double,_ longitude: Double, completion: @escaping (PhotoData.PhotosResult) -> Void) {
+
 		let methodParameters = [
 			Constants.FlickrParameterKeys.Method: Constants.FlickrParameterValues.SearchMethod,
 			Constants.FlickrParameterKeys.APIKey: Constants.FlickrParameterValues.APIKey,
 			Constants.FlickrParameterKeys.Latitude: latitude,
 			Constants.FlickrParameterKeys.Longitude: longitude,
-			Constants.FlickrParameterKeys.PerPage: picsPerPage,
 			Constants.FlickrParameterKeys.SafeSearch: Constants.FlickrParameterValues.UseSafeSearch,
 			Constants.FlickrParameterKeys.Extras: Constants.FlickrParameterValues.MediumURL,
 			Constants.FlickrParameterKeys.Format: Constants.FlickrParameterValues.ResponseFormat,
@@ -59,21 +55,19 @@ class FlickrAPI: NSObject {
 			}
 			let pageLimit = min(totalPages, 40)
 			let randomPage = Int(arc4random_uniform(UInt32(pageLimit))) + 1
+			print("Page number \(randomPage)")
 			self.displayImageFromFlickrBySearch(latitude, longitude, withPageNumber: randomPage) { (result) in
+				
 				switch result {
 				case .failure( _):
 					print("this be an error")
 				default:
-					break
+					DispatchQueue.main.async {
+						completion(result)
+					}
 				}
 		}
-		
-//		PhotoData.sharedInstance.processPhotosRequest(data: data, error: error) { (result) in
-//			
-//			DispatchQueue.main.async {
-//				completion(result)
-//			}
-//			
+	
 		}
 	
 	

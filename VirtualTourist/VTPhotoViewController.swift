@@ -10,14 +10,6 @@ import UIKit
 import MapKit
 import CoreData
 
-enum ImageResult {
-	case success(UIImage)
-	case failure(Error)
-}
-
-enum PhotoError: Error {
-	case imageCreationError
-}
 
 enum FetchResult {
 	case success([Photo])
@@ -36,11 +28,25 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 	var longitude: Double = 0.0
 	var selectedPhotos = [String]()
 	
+	lazy var fetchedResultsController: NSFetchedResultsController<Photo> = {
+		let fetchRequest: NSFetchRequest<Photo> = Photo.fetchRequest()
+		fetchRequest.predicate = NSPredicate(format: "pin == %@", self.passedPin!)
+		fetchRequest.sortDescriptors = []
+		
+		let context = CoreDataManager.persistentContainer?.viewContext
+		
+		let fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext:context!, sectionNameKeyPath: nil, cacheName: nil)
+		
+		return fetchedResultsController
+	} ()
+	
     override func viewDidLoad() {
         super.viewDidLoad()
+
 		collectView.delegate = self
 		collectView.dataSource = self
 		mapView.delegate = self
+		fetchedResultsController.delegate = self
 		collectView.allowsMultipleSelection = true
 		latitude = (self.passedPin?.latitude)!
 		longitude = (self.passedPin?.longitude)!
@@ -50,59 +56,46 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		let coordinateRegion = MKCoordinateRegionMakeWithDistance(annotation.coordinate, regionRadius, regionRadius)
 		mapView.setRegion(coordinateRegion, animated: true)
 		mapView.addAnnotation(annotation)
-		updateDataSource()
+	}
 
-    }
-
+	override func viewWillAppear(_ animated: Bool) {
+		loadOrUpdateData()
+	}
+	
 	//MARK: - CollectionView Setup
+	
+	func numberOfSections(in collectionView: UICollectionView) -> Int {
+		return self.fetchedResultsController.sections?.count ?? 0
+	}
 	func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-		return photos.count
+		return fetchedResultsController.sections![section].numberOfObjects
+
 	}
 	
 	func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
 		
-		let cell = collectView.dequeueReusableCell(withReuseIdentifier: "PhotoCellCollectionViewCell", for: indexPath)
+		let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoCell", for: indexPath) as! PhotoCellCollectionViewCell
+		let photo = fetchedResultsController.object(at: indexPath)
+		cell.photoImageCell.image = nil
+		cell.spinner.startAnimating()
+		let image = UIImage(data: photo.imageData! as Data)
 
+		if cell.photoImageCell.image == nil {
+			cell.photoImageCell.image = image
+			cell.spinner.stopAnimating()
+			return cell
+		} else {
+			cell.photoImageCell.image = nil
+			cell.spinner.startAnimating()
+		}
+		//collectView.reloadItems(at: [indexPath])
 		return cell
 	}
 	
-
-//	//MARK: - Fetch images from cache when cell is loaded.
-//	func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-//		
-//		let photo = photos[indexPath.row]
-//		let photoIndex = self.photos.index(of: photo)
-//		let photoIndexPath = IndexPath(item: photoIndex!, section: 0)
-//		
-//		if photos.isEmpty {
-//		if let photoURL = photo.imageURL {
-//			do {
-//				let data = try Data(contentsOf: photoURL as! URL)
-//				let photoImage = UIImage(data: data)
-//
-//				if let cell = collectionView.cellForItem(at: photoIndexPath) as? PhotoCellCollectionViewCell {
-//					cell.update(with: photoImage)
-//				}
-//				DispatchQueue.main.async {
-//
-//					//cell.photoImageCell.image = UIImage(data: data)
-//					photo.imageData = data as NSData
-//					CoreDataManager.saveContext()
-//				}
-//				
-//			}
-//			catch {
-//				print("No photos!!")
-//			}
-//		}
-//		} else {
-//			return
-//		}
-//	}
 	
 	//MARK: - When cell is tapped (selected)
 	func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-		let photo = photos[indexPath.row]
+		let photo = fetchedResultsController.object(at: indexPath)
 		let cell = collectionView.cellForItem(at: indexPath) as! PhotoCellCollectionViewCell
 		if !selectedPhotos.contains(photo.photoID!) {
 			selectedPhotos.append(photo.photoID!)
@@ -114,13 +107,14 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 
 	//MARK: - When same cell is tapped again (deselected)
 	func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
-		let photo = photos[indexPath.row]
+		let photo = fetchedResultsController.object(at: indexPath)
 		let cell = collectionView.cellForItem(at: indexPath) as! PhotoCellCollectionViewCell
 		selectedPhotos.remove(at: selectedPhotos.index(of: photo.photoID!)!)
 		if selectedPhotos.isEmpty {
 			collectionButton.setTitle("New Collection", for: .normal)
 		}
 		cell.alpha = 1
+
 	}
 	
 
@@ -128,21 +122,19 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 	@IBAction func newCollection(_ sender: Any) {
 		
 		if selectedPhotos.isEmpty {
-			CoreDataManager.deletePhotosForPin(self.passedPin!)
-			FlickrAPI.sharedInstance.initiateFlickrAPIRequestBySearch(self.latitude, self.longitude) { (result) in
-				switch result {
-				case .failure( _):
-					self.showAlert(AnyObject.self, message: "Unable to load new images, let's try a new location!")
-					self.dismiss(animated: true, completion: nil)
-				default:
-					break
+			performUIUpdatesOnMain {
+				print(self.passedPin!)
+				CoreDataManager.deletePhotosForPin(self.passedPin!) { () in
+					print(self.latitude, self.longitude)
+					self.loadOrUpdateData()
 				}
-				self.updateDataSource()
+				print("Outside delete")
+				
 			}
-
 		} else {
 			CoreDataManager.deleteSelectedPhotos(selectedPhotos)
-			updateDataSource()
+			selectedPhotos.removeAll()
+			loadOrUpdateData()
 			
 		}
 	
@@ -159,42 +151,43 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		
 		let alert = UIAlertController(title: nil, message: errMessage, preferredStyle: UIAlertControllerStyle.alert)
 		alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: { action in
-			alert.dismiss(animated: true, completion: nil)
+			self.dismiss(animated: true, completion: nil)
 		}))
 		
 		self.present(alert, animated: true, completion: nil)
 	
 	}
 	
-	//MARK: - Updating cell content
-	func updateDataSource() {
-		self.fetchAllPhotos { (photosResult) in
-			
-			switch photosResult {
-			case let .success(photos):
-				self.photos = photos
-			case .failure:
-				self.photos.removeAll()
-			}
-			self.collectView.reloadSections(IndexSet(integer: 0))
-		}
-	}
-	
-	//MARK: - Fetch request for Photo data
-	func fetchAllPhotos(completion: @escaping (FetchResult) -> Void) {
-		let fetchRequest: NSFetchRequest<Photo> = Photo.fetchRequest()
-		fetchRequest.predicate = NSPredicate(format: "pin == %@", self.passedPin!)
+	//MARK: - Load/Update cell content
+	func loadOrUpdateData() {
 		
-		let viewContext = CoreDataManager.persistentContainer?.viewContext
-		viewContext?.perform {
-			do {
-				let request = try fetchRequest.execute()
-				let allPhotos: [Photo] = request
-				completion(.success(allPhotos))
-			} catch {
-				completion(.failure(error))
+		do {
+			try self.fetchedResultsController.performFetch()
+			print("Fetch done")
+		} catch {
+			let fetchError = error as NSError
+			print("Unable to Perform Fetch Request")
+			print("\(fetchError), \(fetchError.localizedDescription)")
+		}
+		
+		if fetchedResultsController.fetchedObjects!.count == 0 {
+			FlickrAPI.sharedInstance.initiateFlickrAPIRequestBySearch(self.latitude, self.longitude) { (result) in
+				print(result)
+				switch result {
+				case .failure( _):
+					self.showAlert(AnyObject.self, message: "Unable to load images, let's try a new location!")
+				case let .success(returnedPhotos):
+					if returnedPhotos.isEmpty {
+						self.showAlert(AnyObject.self, message: "No images for this location - let's try a new location!")
+					} else {
+						self.collectView.reloadSections(IndexSet(integer: 0))
+					}
+					
+				}
+				
 			}
 		}
+		
 	}
 
 }

@@ -24,17 +24,17 @@ class PhotoCellCollectionViewCell: UICollectionViewCell {
 		}
 	}
 	
-	//Sets cell spinner to spinning state when first created.
-	override func awakeFromNib() {
-		super.awakeFromNib()
-		
-		update(with: nil)
-	}
-	
-	//Sets cell spinner to spinning state when cell is reused.
-	override func prepareForReuse() {
-		super.prepareForReuse()
-		
-		update(with: nil)
-	}
+//	//Sets cell spinner to spinning state when first created.
+//	override func awakeFromNib() {
+//		super.awakeFromNib()
+//		
+//		update(with: nil)
+//	}
+//	
+//	//Sets cell spinner to spinning state when cell is reused.
+//	override func prepareForReuse() {
+//		super.prepareForReuse()
+//		
+//		update(with: nil)
+//	}
 }
