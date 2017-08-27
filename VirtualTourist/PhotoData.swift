@@ -38,7 +38,6 @@ class PhotoData: NSObject {
 	
 	//MARK: - Function to process/save photos
 	func processPhotosRequest(data: Data?, error: Error?, completion: @escaping (PhotosResult) -> Void) {
-
 		
 		guard let jsonData = data
 			else {
@@ -62,7 +61,6 @@ class PhotoData: NSObject {
 		case .failure:
 			completion(result)
 		}
-		
 	}
 	
 	//MARK: - Get Photos from JSON data
@@ -106,14 +104,14 @@ class PhotoData: NSObject {
 				return nil
 		}
 		
-		do {
-			let data = try Data(contentsOf: url )
-			imageData = data as NSData
-
-		}
-			catch {
-				print("No photo data returned!!")
-		}
+//		do {
+//			let data = try Data(contentsOf: url )
+//			imageData = data as NSData
+//
+//		}
+//			catch {
+//				print("No photo data returned!!")
+//		}
 		
 		let fetchRequest: NSFetchRequest<Photo> = Photo.fetchRequest()
 		let predicate = NSPredicate(format: "\(#keyPath(Photo.photoID)) == \(photoID)")
@@ -132,7 +130,7 @@ class PhotoData: NSObject {
 			photo = Photo(context: context)
 			photo.photoID = photoID
 			photo.imageURL = url as NSURL
-			photo.imageData = self.imageData
+//			photo.imageData = self.imageData
 			photo.pin = self.currentPin
 		}
 		return photo

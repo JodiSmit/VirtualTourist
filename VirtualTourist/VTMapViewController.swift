@@ -99,10 +99,13 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
     //MARK: - This method is implemented to allow pins to respond to taps.
 	func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
 		self.selectedAnnotation = mapView.selectedAnnotations.first as! MKPointAnnotation
+		print("Select Annotation \(String(describing: self.selectedAnnotation))")
 		if pinError != true {
 			if editingPins == false {
 				mapView.deselectAnnotation(view.annotation, animated: true)
-				performSegue(withIdentifier: "PinSelected", sender: self.selectedAnnotation)
+				DispatchQueue.main.async {
+					self.performSegue(withIdentifier: "PinSelected", sender: self.selectedAnnotation)
+				}
 			}else {
 				var pinDeleting: CLLocationCoordinate2D?
 				pinDeleting = self.selectedAnnotation?.coordinate
@@ -130,8 +133,9 @@ class VTMapViewController: UIViewController, MKMapViewDelegate {
     
 	//MARK: Preparing Segue to next VC to display photos.
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-		
+
 		let selectedPin = self.pinFromSelectedAnnotation()
+
 		PhotoData.sharedInstance.setCurrentPin(pin: selectedPin)
 		
 		if segue.identifier == "PinSelected" {

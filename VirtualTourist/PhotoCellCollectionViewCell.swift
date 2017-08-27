@@ -13,7 +13,6 @@ class PhotoCellCollectionViewCell: UICollectionViewCell {
 	@IBOutlet weak var photoImageCell: UIImageView!
 	@IBOutlet weak var spinner: UIActivityIndicatorView!
 	
-	
 	func update(with image: UIImage?) {
 		if let imageToDisplay = image {
 			spinner.stopAnimating()
