@@ -10,25 +10,19 @@ import UIKit
 import MapKit
 import CoreData
 
-
-enum FetchResult {
-	case success([Photo])
-	case failure(Error)
-}
-
 class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, MKMapViewDelegate, NSFetchedResultsControllerDelegate {
-    
-    @IBOutlet weak var collectView: UICollectionView!
+	
+	@IBOutlet weak var collectView: UICollectionView!
 	@IBOutlet weak var collectionButton: UIButton!
-    @IBOutlet weak var mapView: MKMapView!
-
+	@IBOutlet weak var mapView: MKMapView!
+	
 	var passedPin: Pin?
-	var photos = [Photo]()
 	var latitude: Double = 0.0
 	var longitude: Double = 0.0
 	var selectedPhotos = [String]()
 	var indexToDelete = [IndexPath]()
 	
+	//MARK: - Fetched Results controller for retrieving Core Data information
 	lazy var fetchedResultsController: NSFetchedResultsController<Photo> = {
 		let fetchRequest: NSFetchRequest<Photo> = Photo.fetchRequest()
 		fetchRequest.predicate = NSPredicate(format: "pin == %@", self.passedPin!)
@@ -41,7 +35,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		return fetchedResultsController
 	} ()
 	
-    override func viewDidLoad() {
+	override func viewDidLoad() {
 		super.viewDidLoad()
 		collectView.delegate = self
 		collectView.dataSource = self
@@ -58,10 +52,9 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		mapView.addAnnotation(annotation)
 		loadOrUpdateData()
 	}
-
 	
-	//MARK: - CollectionView Setup
 	
+	//MARK: - CollectionView functions
 	func numberOfSections(in collectionView: UICollectionView) -> Int {
 		return (self.fetchedResultsController.sections?.count)!
 	}
@@ -69,44 +62,43 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 	func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
 		let indexCount = indexToDelete.count
 		let fetchedCount = (self.fetchedResultsController.fetchedObjects?.count)!
-
+		
 		if indexCount != 0 {
 			return fetchedCount
 		} else {
 			return fetchedCount - indexCount
 		}
 	}
-
+	
 	func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-
+		
 		let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoCell", for: indexPath) as! PhotoCellCollectionViewCell
 		
 		cell.spinner.startAnimating()
 		cell.photoImageCell.image = nil
-
-		DispatchQueue.main.async {
-
+		
+		performUIUpdatesOnMain {
 			let photo = self.fetchedResultsController.object(at: indexPath)
-
-				if photo.imageData != nil {
+			
+			if photo.imageData != nil {
+				cell.spinner.stopAnimating()
+				cell.photoImageCell.image = UIImage(data: photo.imageData! as Data)
+			} else {
+				do {
+					let data = try Data(contentsOf: photo.imageURL as! URL )
+					let imageData = data as NSData
+					let image = UIImage(data: data)
+					cell.photoImageCell.image = image
 					cell.spinner.stopAnimating()
-					cell.photoImageCell.image = UIImage(data: photo.imageData! as Data)
-				} else {
-					do {
-						let data = try Data(contentsOf: photo.imageURL as! URL )
-						let imageData = data as NSData
-						let image = UIImage(data: data)
-						cell.photoImageCell.image = image
-						cell.spinner.stopAnimating()
-						
-						self.fetchedResultsController.fetchedObjects?.first?.imageData = imageData
-						CoreDataManager.saveContext()
-						
-					}
-					catch {
-						print("No photo data returned!!")
-					}
+					
+					self.fetchedResultsController.fetchedObjects?.first?.imageData = imageData
+					CoreDataManager.saveContext()
+					
 				}
+				catch {
+					print("No photo data returned!!")
+				}
+			}
 		}
 		
 		return cell
@@ -115,7 +107,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 	
 	//MARK: - When cell is tapped (selected)
 	func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-
+		
 		let photo = fetchedResultsController.object(at: indexPath)
 		let cell = collectionView.cellForItem(at: indexPath) as! PhotoCellCollectionViewCell
 		selectLabel()
@@ -125,9 +117,9 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 			
 		}
 		cell.alpha = 0.5
-
+		
 	}
-
+	
 	//MARK: - When same cell is tapped again (deselected)
 	func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
 		let photo = fetchedResultsController.object(at: indexPath)
@@ -135,10 +127,10 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		selectedPhotos.remove(at: selectedPhotos.index(of: photo.photoID!)!)
 		selectLabel()
 		cell.alpha = 1
-
+		
 	}
 	
-
+	//MARK: - Change label title
 	func selectLabel() {
 		if selectedPhotos.isEmpty {
 			collectionButton.setTitle("New Collection", for: .normal)
@@ -146,7 +138,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 			collectionButton.setTitle("Remove Selected", for: .normal)
 			
 		}
-
+		
 		
 	}
 	//MARK: - Action when button at base is clicked
@@ -157,7 +149,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 				CoreDataManager.deletePhotosForPin(self.passedPin!) { () in
 					self.loadOrUpdateData()
 				}
-
+				
 			}
 			
 		} else {
@@ -176,7 +168,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 			
 		}
 		selectLabel()
-			
+		
 	}
 	
 	//MARK: - Back button action
@@ -194,12 +186,12 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		}))
 		
 		self.present(alert, animated: true, completion: nil)
-	
+		
 	}
 	
 	//MARK: - Load/Update cell content
 	func loadOrUpdateData() {
-
+		
 		do {
 			try self.fetchedResultsController.performFetch()
 		} catch {
@@ -207,7 +199,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 			print("Unable to Perform Fetch Request")
 			print("\(fetchError), \(fetchError.localizedDescription)")
 		}
-
+		
 		if fetchedResultsController.fetchedObjects!.count == 0 {
 			FlickrAPI.sharedInstance.initiateFlickrAPIRequestBySearch(self.latitude, self.longitude) { (result) in
 				switch result {
@@ -225,7 +217,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 							print("Unable to Perform Fetch Request")
 							print("\(fetchError), \(fetchError.localizedDescription)")
 						}
-
+						
 					}
 					
 				}
@@ -234,5 +226,5 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		}
 		
 	}
-
+	
 }

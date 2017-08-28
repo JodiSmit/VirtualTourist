@@ -11,16 +11,7 @@ import CoreData
 import UIKit
 
 class PhotoData: NSObject {
-
-	enum ImageResult {
-		case success(UIImage)
-		case failure(Error)
-	}
 	
-	enum PhotoError: Error {
-		case imageCreationError
-	}
-
 	enum PhotosResult {
 		case success([Photo])
 		case failure(Error)
@@ -28,13 +19,12 @@ class PhotoData: NSObject {
 	
 	static let sharedInstance = PhotoData()
 	
-	var imageData: NSData? = nil
 	var currentPin: Pin? = nil
 	
 	func setCurrentPin(pin: Pin?) {
 		currentPin = pin
 	}
-
+	
 	
 	//MARK: - Function to process/save photos
 	func processPhotosRequest(data: Data?, error: Error?, completion: @escaping (PhotosResult) -> Void) {
@@ -77,7 +67,7 @@ class PhotoData: NSObject {
 			}
 			
 			var finalPhotos = [Photo]()
-
+			
 			for photoJSON in photosArray {
 				if let photo = photo(fromJSON: photoJSON, into: (CoreDataManager.persistentContainer?.viewContext)!) {
 					finalPhotos.append(photo)
@@ -104,15 +94,6 @@ class PhotoData: NSObject {
 				return nil
 		}
 		
-//		do {
-//			let data = try Data(contentsOf: url )
-//			imageData = data as NSData
-//
-//		}
-//			catch {
-//				print("No photo data returned!!")
-//		}
-		
 		let fetchRequest: NSFetchRequest<Photo> = Photo.fetchRequest()
 		let predicate = NSPredicate(format: "\(#keyPath(Photo.photoID)) == \(photoID)")
 		fetchRequest.predicate = predicate
@@ -130,7 +111,6 @@ class PhotoData: NSObject {
 			photo = Photo(context: context)
 			photo.photoID = photoID
 			photo.imageURL = url as NSURL
-//			photo.imageData = self.imageData
 			photo.pin = self.currentPin
 		}
 		return photo

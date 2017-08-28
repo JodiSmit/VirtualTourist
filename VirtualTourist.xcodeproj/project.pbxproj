@@ -47,7 +47,7 @@
 		63A9B3CF1ED3B79C008B6C96 /* FlickrAPI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FlickrAPI.swift; sourceTree = "<group>"; };
 		63A9B3D21ED3B8A3008B6C96 /* GCDBlackBox.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GCDBlackBox.swift; sourceTree = "<group>"; };
 		63A9B3D71ED3C1A6008B6C96 /* VTPhotoViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VTPhotoViewController.swift; sourceTree = "<group>"; };
-		63BF13BD1F42607200AB14F8 /* Photo+CoreDataProperties.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Photo+CoreDataProperties.swift"; sourceTree = "<group>"; };
+		63BF13BD1F42607200AB14F8 /* Photo+CoreDataProperties.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "Photo+CoreDataProperties.swift"; path = "../Photo+CoreDataProperties.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,7 +73,6 @@
 		6330919E1ECF498A0022FCF8 = {
 			isa = PBXGroup;
 			children = (
-				63BF13BD1F42607200AB14F8 /* Photo+CoreDataProperties.swift */,
 				633091A91ECF498A0022FCF8 /* VirtualTourist */,
 				633091A81ECF498A0022FCF8 /* Products */,
 				631898BD1EEA10A000B8E33F /* Frameworks */,
@@ -111,6 +110,7 @@
 		63A9B3C21ED39A5C008B6C96 /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				63BF13BD1F42607200AB14F8 /* Photo+CoreDataProperties.swift */,
 				6356884F1F280C2500A30D89 /* Photo+CoreDataClass.swift */,
 				635688511F280C2500A30D89 /* Pin+CoreDataClass.swift */,
 				635688521F280C2500A30D89 /* Pin+CoreDataProperties.swift */,
@@ -366,6 +366,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.smitty.VirtualTourist;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 3.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -379,6 +380,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.smitty.VirtualTourist;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 3.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
