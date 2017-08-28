@@ -2,7 +2,7 @@
 //  Photo+CoreDataProperties.swift
 //  VirtualTourist
 //
-//  Created by Jodi Lovell on 7/25/17.
+//  Created by Jodi Lovell on 8/14/17.
 //  Copyright © 2017 None. All rights reserved.
 //
 
@@ -18,6 +18,7 @@ extension Photo {
 
     @NSManaged public var imageURL: NSObject?
     @NSManaged public var photoID: String?
+    @NSManaged public var imageData: NSData?
     @NSManaged public var pin: Pin?
 
 }

@@ -8,11 +8,10 @@
 
 import Foundation
 import CoreData
-
+import UIKit
 
 class PhotoData: NSObject {
-
-
+	
 	enum PhotosResult {
 		case success([Photo])
 		case failure(Error)
@@ -26,13 +25,9 @@ class PhotoData: NSObject {
 		currentPin = pin
 	}
 	
-	func getCurrentPin() -> Pin {
-		return currentPin!
-	}
 	
 	//MARK: - Function to process/save photos
 	func processPhotosRequest(data: Data?, error: Error?, completion: @escaping (PhotosResult) -> Void) {
-
 		
 		guard let jsonData = data
 			else {
@@ -56,7 +51,6 @@ class PhotoData: NSObject {
 		case .failure:
 			completion(result)
 		}
-		
 	}
 	
 	//MARK: - Get Photos from JSON data
@@ -73,7 +67,7 @@ class PhotoData: NSObject {
 			}
 			
 			var finalPhotos = [Photo]()
-
+			
 			for photoJSON in photosArray {
 				if let photo = photo(fromJSON: photoJSON, into: (CoreDataManager.persistentContainer?.viewContext)!) {
 					finalPhotos.append(photo)
@@ -121,5 +115,4 @@ class PhotoData: NSObject {
 		}
 		return photo
 	}
-	
 }

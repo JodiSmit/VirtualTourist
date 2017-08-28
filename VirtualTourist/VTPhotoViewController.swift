@@ -10,38 +10,37 @@ import UIKit
 import MapKit
 import CoreData
 
-enum ImageResult {
-	case success(UIImage)
-	case failure(Error)
-}
-
-enum PhotoError: Error {
-	case imageCreationError
-}
-
-enum FetchResult {
-	case success([Photo])
-	case failure(Error)
-}
-
 class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, MKMapViewDelegate, NSFetchedResultsControllerDelegate {
-    
-    @IBOutlet weak var collectView: UICollectionView!
+	
+	@IBOutlet weak var collectView: UICollectionView!
 	@IBOutlet weak var collectionButton: UIButton!
-    @IBOutlet weak var mapView: MKMapView!
-
-	let imageStore = ImageStore()
+	@IBOutlet weak var mapView: MKMapView!
+	
 	var passedPin: Pin?
-	var photos = [Photo]()
 	var latitude: Double = 0.0
 	var longitude: Double = 0.0
 	var selectedPhotos = [String]()
+	var indexToDelete = [IndexPath]()
 	
-    override func viewDidLoad() {
-        super.viewDidLoad()
+	//MARK: - Fetched Results controller for retrieving Core Data information
+	lazy var fetchedResultsController: NSFetchedResultsController<Photo> = {
+		let fetchRequest: NSFetchRequest<Photo> = Photo.fetchRequest()
+		fetchRequest.predicate = NSPredicate(format: "pin == %@", self.passedPin!)
+		fetchRequest.sortDescriptors = []
+		
+		let context = CoreDataManager.persistentContainer?.viewContext
+		
+		let fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext:context!, sectionNameKeyPath: nil, cacheName: nil)
+		
+		return fetchedResultsController
+	} ()
+	
+	override func viewDidLoad() {
+		super.viewDidLoad()
 		collectView.delegate = self
 		collectView.dataSource = self
 		mapView.delegate = self
+		fetchedResultsController.delegate = self
 		collectView.allowsMultipleSelection = true
 		latitude = (self.passedPin?.latitude)!
 		longitude = (self.passedPin?.longitude)!
@@ -51,134 +50,125 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		let coordinateRegion = MKCoordinateRegionMakeWithDistance(annotation.coordinate, regionRadius, regionRadius)
 		mapView.setRegion(coordinateRegion, animated: true)
 		mapView.addAnnotation(annotation)
-		updateDataSource()
-
-    }
-
-	//MARK: - CollectionView Setup
+		loadOrUpdateData()
+	}
+	
+	
+	//MARK: - CollectionView functions
+	func numberOfSections(in collectionView: UICollectionView) -> Int {
+		return (self.fetchedResultsController.sections?.count)!
+	}
+	
 	func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-		return photos.count
+		let indexCount = indexToDelete.count
+		let fetchedCount = (self.fetchedResultsController.fetchedObjects?.count)!
+		
+		if indexCount != 0 {
+			return fetchedCount
+		} else {
+			return fetchedCount - indexCount
+		}
 	}
 	
 	func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
 		
-		let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoCellCollectionViewCell", for: indexPath)
+		let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoCell", for: indexPath) as! PhotoCellCollectionViewCell
+		
+		cell.spinner.startAnimating()
+		cell.photoImageCell.image = nil
+		
+		performUIUpdatesOnMain {
+			let photo = self.fetchedResultsController.object(at: indexPath)
+			
+			if photo.imageData != nil {
+				cell.spinner.stopAnimating()
+				cell.photoImageCell.image = UIImage(data: photo.imageData! as Data)
+			} else {
+				do {
+					let data = try Data(contentsOf: photo.imageURL as! URL )
+					let imageData = data as NSData
+					let image = UIImage(data: data)
+					cell.photoImageCell.image = image
+					cell.spinner.stopAnimating()
+					
+					self.fetchedResultsController.fetchedObjects?.first?.imageData = imageData
+					CoreDataManager.saveContext()
+					
+				}
+				catch {
+					print("No photo data returned!!")
+				}
+			}
+		}
+		
 		return cell
 	}
 	
-	//MARK: - Fetch images from cache when cell is loaded.
-	func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-		
-		let photo = photos[indexPath.row]
-		
-		performUIUpdatesOnMain {
-			self.fetchImage(for: photo) { (result) -> Void in
-				guard let photoIndex = self.photos.index(of: photo),
-					case let .success(image) = result
-					else {
-						return
-				}
-				
-				let photoIndexPath = IndexPath(item: photoIndex, section: 0)
-				if let cell = self.collectView.cellForItem(at: photoIndexPath) as? PhotoCellCollectionViewCell {
-					cell.update(with: image)
-				}
-			}
-		}
-	}
 	
 	//MARK: - When cell is tapped (selected)
 	func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-		let photo = photos[indexPath.row]
+		
+		let photo = fetchedResultsController.object(at: indexPath)
 		let cell = collectionView.cellForItem(at: indexPath) as! PhotoCellCollectionViewCell
-		if !selectedPhotos.contains(photo.photoID!) {
+		selectLabel()
+		if !selectedPhotos.contains(photo.photoID!){
 			selectedPhotos.append(photo.photoID!)
+			indexToDelete.append(indexPath)
+			
 		}
 		cell.alpha = 0.5
-		collectionButton.setTitle("Remove Selected", for: .normal)
-		print(selectedPhotos)
+		
 	}
-
+	
 	//MARK: - When same cell is tapped again (deselected)
 	func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
-		let photo = photos[indexPath.row]
+		let photo = fetchedResultsController.object(at: indexPath)
 		let cell = collectionView.cellForItem(at: indexPath) as! PhotoCellCollectionViewCell
 		selectedPhotos.remove(at: selectedPhotos.index(of: photo.photoID!)!)
+		selectLabel()
+		cell.alpha = 1
+		
+	}
+	
+	//MARK: - Change label title
+	func selectLabel() {
 		if selectedPhotos.isEmpty {
 			collectionButton.setTitle("New Collection", for: .normal)
-		}
-		cell.alpha = 1
-	}
-	
-	//MARK: - Fetching the image from cache using URL data
-	func fetchImage(for photo: Photo, completion: @escaping (ImageResult) -> Void) {
-		
-		guard let photoKey = photo.photoID else {
-			preconditionFailure("Photo expected to have photoID")
-		}
-
-		if let image = imageStore.imageForKey(key: photoKey) {
-			DispatchQueue.main.async {
-				completion(.success(image))
-			}
-			return
-		}
-	
-		guard let photoURL = photo.imageURL else {
-			preconditionFailure("Photo expected to have remoteURL")
+		} else {
+			collectionButton.setTitle("Remove Selected", for: .normal)
+			
 		}
 		
-		let session = URLSession.shared
-		let request = URLRequest(url: photoURL as! URL)
-		let task = session.dataTask(with: request) { (data, response, error) -> Void in
-			
-			let result = self.processImageRequest(data: data, error: error)
-			
-			if case let .success(image) = result {
-				self.imageStore.setImage(image: image, forKey: photoKey)
-			}
-			DispatchQueue.main.async {
-				completion(result)
-			}
-		}
-		task.resume()
+		
 	}
-	
-	//MARK: - Process the image request based on the data
-	private func processImageRequest(data: Data?, error: Error?) -> ImageResult {
-		guard let imageData = data, let image = UIImage(data: imageData)
-			else {
-				if data == nil {
-					return .failure(error!)
-				} else {
-					return .failure(PhotoError.imageCreationError)
-				}
-		}
-		return .success(image)
-	}
-
 	//MARK: - Action when button at base is clicked
 	@IBAction func newCollection(_ sender: Any) {
 		
 		if selectedPhotos.isEmpty {
-			CoreDataManager.deletePhotosForPin(self.passedPin!)
-			FlickrAPI.sharedInstance.displayImageFromFlickrBySearch(self.latitude, self.longitude) { (result) in
-				switch result {
-				case .failure( _):
-					self.showAlert(AnyObject.self, message: "Unable to load new images, let's try a new location!")
-					self.dismiss(animated: true, completion: nil)
-				default:
-					break
+			performUIUpdatesOnMain {
+				CoreDataManager.deletePhotosForPin(self.passedPin!) { () in
+					self.loadOrUpdateData()
 				}
-				self.updateDataSource()
+				
 			}
-
+			
 		} else {
 			CoreDataManager.deleteSelectedPhotos(selectedPhotos)
-			updateDataSource()
+			
+			do {
+				try self.fetchedResultsController.performFetch()
+			} catch {
+				let fetchError = error as NSError
+				print("Unable to Perform Fetch Request")
+				print("\(fetchError), \(fetchError.localizedDescription)")
+			}
+			collectView.deleteItems(at: indexToDelete)
+			selectedPhotos.removeAll()
+			indexToDelete.removeAll()
 			
 		}
-	
+		selectLabel()
+		
 	}
 	
 	//MARK: - Back button action
@@ -192,42 +182,49 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		
 		let alert = UIAlertController(title: nil, message: errMessage, preferredStyle: UIAlertControllerStyle.alert)
 		alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: { action in
-			alert.dismiss(animated: true, completion: nil)
+			self.dismiss(animated: true, completion: nil)
 		}))
 		
 		self.present(alert, animated: true, completion: nil)
-	
-	}
-	
-	//MARK: - Updating cell content
-	func updateDataSource() {
-		self.fetchAllPhotos { (photosResult) in
-			
-			switch photosResult {
-			case let .success(photos):
-				self.photos = photos
-			case .failure:
-				self.photos.removeAll()
-			}
-			self.collectView.reloadSections(IndexSet(integer: 0))
-		}
-	}
-	
-	//MARK: - Fetch request for Photo data
-	func fetchAllPhotos(completion: @escaping (FetchResult) -> Void) {
-		let fetchRequest: NSFetchRequest<Photo> = Photo.fetchRequest()
-		fetchRequest.predicate = NSPredicate(format: "pin == %@", self.passedPin!)
 		
-		let viewContext = CoreDataManager.persistentContainer?.viewContext
-		viewContext?.perform {
-			do {
-				let request = try fetchRequest.execute()
-				let allPhotos: [Photo] = request
-				completion(.success(allPhotos))
-			} catch {
-				completion(.failure(error))
+	}
+	
+	//MARK: - Load/Update cell content
+	func loadOrUpdateData() {
+		
+		do {
+			try self.fetchedResultsController.performFetch()
+		} catch {
+			let fetchError = error as NSError
+			print("Unable to Perform Fetch Request")
+			print("\(fetchError), \(fetchError.localizedDescription)")
+		}
+		
+		if fetchedResultsController.fetchedObjects!.count == 0 {
+			FlickrAPI.sharedInstance.initiateFlickrAPIRequestBySearch(self.latitude, self.longitude) { (result) in
+				switch result {
+				case .failure( _):
+					self.showAlert(AnyObject.self, message: "Unable to load images, let's try a new location!")
+				case let .success(returnedPhotos):
+					if returnedPhotos.isEmpty {
+						self.showAlert(AnyObject.self, message: "No images for this location - let's try a new location!")
+					} else {
+						do {
+							try self.fetchedResultsController.performFetch()
+							self.collectView.reloadData()
+						} catch {
+							let fetchError = error as NSError
+							print("Unable to Perform Fetch Request")
+							print("\(fetchError), \(fetchError.localizedDescription)")
+						}
+						
+					}
+					
+				}
+				
 			}
 		}
+		
 	}
-
+	
 }
