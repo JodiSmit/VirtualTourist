@@ -79,24 +79,25 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		
 		performUIUpdatesOnMain {
 			let photo = self.fetchedResultsController.object(at: indexPath)
-			
+
 			if photo.imageData != nil {
 				cell.spinner.stopAnimating()
 				cell.photoImageCell.image = UIImage(data: photo.imageData! as Data)
 			} else {
-				do {
-					let data = try Data(contentsOf: photo.imageURL as! URL )
-					let imageData = data as NSData
-					let image = UIImage(data: data)
-					cell.photoImageCell.image = image
-					cell.spinner.stopAnimating()
-					
-					self.fetchedResultsController.fetchedObjects?.first?.imageData = imageData
-					CoreDataManager.saveContext()
-					
-				}
-				catch {
-					print("No photo data returned!!")
+				
+				self.downloadImage(imagePath: photo.imageURL as! URL) { (success, imageData, errorString) in
+					if success {
+						performUIUpdatesOnMain {
+							let image = UIImage(data: imageData!)
+							cell.photoImageCell.image = image
+							cell.spinner.stopAnimating()
+							
+							self.saveImageToCoreData(imageData: imageData!, imageURL: photo.imageURL as! URL)
+						}
+						
+					} else {
+						print("No photo data returned!!")
+					}
 				}
 			}
 		}
@@ -189,6 +190,46 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 		
 	}
 	
+	//MARK: - Save image to core data after it has downloaded.
+	func saveImageToCoreData(imageData: Data, imageURL: URL) {
+		let fetchRequest:NSFetchRequest<NSFetchRequestResult> = NSFetchRequest.init(entityName: "Photo")
+		fetchRequest.predicate = NSPredicate(format: "imageURL == %@", imageURL as CVarArg)
+		do
+		{
+			let fetcher = try CoreDataManager.persistentContainer?.viewContext.fetch(fetchRequest)
+			if fetcher?.count == 1
+			{
+				let objectUpdate = fetcher![0] as! NSManagedObject
+				objectUpdate.setValue(imageData, forKey: "imageData")
+				CoreDataManager.saveContext()
+			}
+		}
+		catch
+		{
+			print(error)
+		}
+		
+	}
+	
+	//MARK: - Download the images from the already saved image paths.
+	func downloadImage( imagePath: URL, completionHandler: @escaping (_ success: Bool, _ imageData: Data?, _ errorString: String?) -> Void){
+		let session = URLSession.shared
+		let imgURL = imagePath
+		let request: NSURLRequest = NSURLRequest(url: imgURL as URL)
+		
+		let task = session.dataTask(with: request as URLRequest) {data, response, downloadError in
+			
+			if downloadError != nil {
+				completionHandler(false, nil, "Could not download image \(imagePath)")
+			} else {
+				
+				completionHandler(true, data, nil)
+			}
+		}
+		
+		task.resume()
+	}
+	
 	//MARK: - Load/Update cell content
 	func loadOrUpdateData() {
 		
@@ -199,7 +240,7 @@ class VTPhotoViewController: UIViewController, UICollectionViewDelegate, UIColle
 			print("Unable to Perform Fetch Request")
 			print("\(fetchError), \(fetchError.localizedDescription)")
 		}
-		
+
 		if fetchedResultsController.fetchedObjects!.count == 0 {
 			FlickrAPI.sharedInstance.initiateFlickrAPIRequestBySearch(self.latitude, self.longitude) { (result) in
 				switch result {
